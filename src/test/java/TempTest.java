@@ -10,7 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class Count implements BeforeTestExecutionCallback {
     private static int cnt;
-    private static final int COUNT = 0;
+    private static String COUNT = "COUNT";
     public void beforeTestExecution(ExtensionContext context) throws Exception {
         cnt++;
         getStore(context).put(COUNT, cnt);
@@ -36,7 +36,7 @@ class PeriodicEnabling implements ExecutionCondition {
     private static final ConditionEvaluationResult ENABLED = ConditionEvaluationResult.enabled("Selected to test");
     private static final ConditionEvaluationResult DISABLED = ConditionEvaluationResult.disabled("No test");
 
-    private Count count = new Count();
+    private static Count count = new Count();
     public PeriodicEnabling() {
         System.out.println("Constructor!!");
 
@@ -54,15 +54,16 @@ class PeriodicEnabling implements ExecutionCondition {
     public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
         System.out.println("current count is" + count.getStore(context));
 
+        int currCount = count.getStore(context).get("COUNT", int.class);
 
-        int result = count.getStore(context).get(COUNT) % this.period;
+        int result = currCount % this.period;
 
         if (result == 0) {
-            System.out.println("after::enabled::currCount = " + currCount);
+            System.out.println("Test case " + currCount + " is running");
             return ENABLED;
         }
 
-        System.out.println("after::disabled::currCount = " + currCount + ", result=" + result);
+        System.out.println("Test case " + currCount + " is skipped");
         return DISABLED;
     }
 
