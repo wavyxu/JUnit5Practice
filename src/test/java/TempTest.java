@@ -1,80 +1,32 @@
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.extension.*;
 import org.junit.jupiter.api.extension.ExtensionContext.Store;
 import org.junit.jupiter.api.extension.ExtensionContext.Namespace;
 
 import java.lang.annotation.*;
+import static org.junit.platform.commons.util.AnnotationUtils.findAnnotation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class Count implements BeforeTestExecutionCallback {
-    private static int cnt;
-    private static String COUNT = "COUNT";
-    public void beforeTestExecution(ExtensionContext context) throws Exception {
-        cnt++;
-        getStore(context).put(COUNT, cnt);
-    }
-
-    public Store getStore(ExtensionContext context) {
-        return context.getStore(Namespace.create(getClass(), context.getRequiredTestMethod()));
-    }
-
-}
 
 @Retention(RetentionPolicy.RUNTIME)
 @ExtendWith(PeriodicEnabling.class)
 @Target(ElementType.TYPE)
+@Tag("Periodic")
 @interface Periodic {
     int period() default 1;
 }
-class PeriodicEnabling implements ExecutionCondition {
-    private int period;
-    //private int count;
 
 
-    private static final ConditionEvaluationResult ENABLED = ConditionEvaluationResult.enabled("Selected to test");
-    private static final ConditionEvaluationResult DISABLED = ConditionEvaluationResult.disabled("No test");
 
-    private static Count count = new Count();
-    public PeriodicEnabling() {
-        System.out.println("Constructor!!");
-
-        Class<TempTest> cls = TempTest.class;
-
-        if(cls.isAnnotationPresent(Periodic.class)) {
-            Annotation annotation = cls.getAnnotation(Periodic.class);
-            this.period = ((Periodic) annotation).period();
-        } else {
-            this.period = 1;
-        }
-
-    }
-    //@Override
-    public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
-        System.out.println("current count is" + count.getStore(context));
-
-        int currCount = count.getStore(context).get("COUNT", int.class);
-
-        int result = currCount % this.period;
-
-        if (result == 0) {
-            System.out.println("Test case " + currCount + " is running");
-            return ENABLED;
-        }
-
-        System.out.println("Test case " + currCount + " is skipped");
-        return DISABLED;
-    }
-
-}
-
-@ExtendWith(Count.class)
 @Periodic(period = 2)
 public class TempTest {
 
     @Test
     @ExtendWith(PeriodicEnabling.class)
+
     public void testTrue() {
         assertTrue(true);
     }
@@ -96,4 +48,48 @@ public class TempTest {
     public void testFalse() {
         assertTrue(!false);
     }
+}
+
+class PeriodicEnabling implements ExecutionCondition, BeforeTestExecutionCallback {
+    private int period;
+    private static int cnt = 1;
+
+    private static final ConditionEvaluationResult ENABLED = ConditionEvaluationResult.enabled("Selected to test");
+    private static final ConditionEvaluationResult DISABLED = ConditionEvaluationResult.disabled("No test");
+
+    public PeriodicEnabling() {
+
+        Class<TempTest> cls = TempTest.class;
+
+        if(cls.isAnnotationPresent(Periodic.class)) {
+            Annotation annotation = cls.getAnnotation(Periodic.class);
+            this.period = ((Periodic) annotation).period();
+        } else {
+            this.period = 1;
+        }
+
+    }
+    @Override
+    public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {
+
+        if ((int)context.getStore(Namespace.GLOBAL).get("COUNT") % period != 0) {
+                System.out.println("Test case " + cnt + " is skipped");
+                return DISABLED;
+            }
+
+            System.out.println("Test case " + cnt + " is running ");
+            return ENABLED;
+    }
+
+
+
+    @Override
+    public void beforeTestExecution(ExtensionContext context) throws Exception {
+        cnt++;
+        context.getStore(Namespace.GLOBAL).put("COUNT", cnt);
+
+
+        System.out.println(context.getStore(Namespace.GLOBAL).get("COUNT"));
+    }
+
 }
